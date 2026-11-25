@@ -11,6 +11,7 @@ import (
 	"github.com/amitc1996/tenant-provisioning/internal/database"
 	"github.com/amitc1996/tenant-provisioning/internal/handler"
 	"github.com/amitc1996/tenant-provisioning/internal/messaging"
+	"github.com/amitc1996/tenant-provisioning/internal/outbox"
 	"github.com/amitc1996/tenant-provisioning/internal/repository"
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +30,31 @@ func main() {
 
 	defer pool.Close()
 	repo := repository.New(pool)
+
+	// Validate messaging configuration.
+	if cfg.RabbitMQURL == "" {
+		log.Fatal("RABBITMQ_URL is required")
+	}
+
+	// Initialize publisher.
+	publisher := messaging.NewPublisher(
+		cfg.RabbitMQURL,
+	)
+
+	// Initialize background dispatcher.
+	dispatcher := outbox.New(
+		repo,
+		publisher,
+	)
+
+	ctx, cancel := context.WithCancel(
+		context.Background(),
+	)
+
+	defer cancel()
+
+	go dispatcher.Run(ctx)
+
 	service := application.New(repo)
 	apiHandler := handler.New(service)
 
