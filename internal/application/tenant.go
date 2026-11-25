@@ -53,7 +53,7 @@ func (s *Service) CreateTenant(ctx context.Context, input CreateTenantInput) (*M
 				return err
 			}
 
-			return q.CreateTask(ctx, task)
+			return persistTask(ctx, q, task)
 		},
 	)
 	if err != nil {
@@ -289,4 +289,13 @@ func (s *Service) DeleteTenant(ctx context.Context, id string) (*MutationResult,
 	}
 
 	return result, nil
+}
+
+func persistTask(ctx context.Context, q *repository.Queries, task *domain.Task) error {
+
+	if err := persistTask(ctx, q, task); err != nil {
+		return err
+	}
+
+	return q.CreateOutboxEvent(ctx, task.ID)
 }

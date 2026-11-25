@@ -1,16 +1,17 @@
 services:
+
   postgres:
     image: postgres:17
-    container_name: tenant-postgres
+
     restart: unless-stopped
 
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password required}
       POSTGRES_DB: ${POSTGRES_DB}
 
     ports:
-      - "127.0.0.1:${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -18,13 +19,18 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+        - pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+
+
   rabbitmq:
     image: rabbitmq:4-management
+
     hostname: rabbitmq
+
     restart: unless-stopped
 
     environment:
@@ -39,12 +45,107 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
 
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test:
+        - CMD-SHELL
+        - rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+
+    restart: "no"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - ./migrations:/migrations:ro
+
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      - "up"
+
+
+  control-plane:
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: control-plane
+
+    restart: unless-stopped
+
+    environment:
+      HTTP_ADDR: ":8080"
+
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/"
+
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8080}:8080"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      rabbitmq:
+        condition: service_healthy
+
+      migrate:
+        condition: service_completed_successfully
+
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --max-time
+        - "3"
+        - http://localhost:8080/readyz
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s    
+      start_period: 10s
+
+
+  worker:
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/"
+
+    command:
+      - "--fail-rate=${WORKER_FAIL_RATE:-0}"
+      - "--min-delay-ms=${WORKER_MIN_DELAY_MS:-1000}"
+      - "--max-delay-ms=${WORKER_MAX_DELAY_MS:-5000}"
+      - "--state-dir=/var/lib/tenant-worker"
+
+    volumes:
+      - worker_data:/var/lib/tenant-worker
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+      migrate:
+        condition: service_completed_successfully
+
 
 volumes:
   postgres_data:
   rabbitmq_data:
+  worker_data:

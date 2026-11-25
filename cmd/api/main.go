@@ -26,7 +26,7 @@ func main() {
 	)
 
 	if err != nil {
-		log.Fatal("Failed to initialize PostgreSQL connection pool")
+		log.Fatalf("Failed to initialize PostgreSQL connection pool: %v", err)
 	}
 
 	defer pool.Close()
@@ -48,14 +48,6 @@ func main() {
 		publisher,
 	)
 
-	ctx, cancel := context.WithCancel(
-		context.Background(),
-	)
-
-	defer cancel()
-
-	go dispatcher.Run(ctx)
-
 	service := application.New(repo)
 
 	progressConsumer := consumer.NewProgressConsumer(
@@ -63,7 +55,7 @@ func main() {
 		service,
 	)
 
-	ctx, cancel = context.WithCancel(
+	ctx, cancel := context.WithCancel(
 		context.Background(),
 	)
 
@@ -132,14 +124,14 @@ func main() {
 	rabbitConn, err := messaging.Connect(cfg.RabbitMQURL)
 
 	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ")
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
 
 	defer rabbitConn.Close()
 
 	// Initialize message queues.
 	if err := messaging.SetupQueues(rabbitConn); err != nil {
-		log.Fatal("Failed to initialize RabbitMQ queues")
+		log.Fatalf("Failed to initialize RabbitMQ queues: %v", err)
 	}
 
 	log.Println("RabbitMQ connected successfully")
