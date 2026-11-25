@@ -76,7 +76,7 @@ func (s *Service) ApplyTaskProgress(
 					ctx,
 					input.EventID,
 				); err != nil {
-					// return err
+					return err
 				}
 			}
 

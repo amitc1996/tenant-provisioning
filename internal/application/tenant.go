@@ -195,8 +195,9 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, input UpdateTenan
 				return err
 			}
 
-			if err := q.CreateTask(
+			if err := persistTask(
 				ctx,
+				q,
 				task,
 			); err != nil {
 				return err
@@ -268,8 +269,9 @@ func (s *Service) DeleteTenant(ctx context.Context, id string) (*MutationResult,
 				return err
 			}
 
-			if err := q.CreateTask(
+			if err := persistTask(
 				ctx,
+				q,
 				task,
 			); err != nil {
 				return err
@@ -293,7 +295,7 @@ func (s *Service) DeleteTenant(ctx context.Context, id string) (*MutationResult,
 
 func persistTask(ctx context.Context, q *repository.Queries, task *domain.Task) error {
 
-	if err := persistTask(ctx, q, task); err != nil {
+	if err := q.CreateTask(ctx, task); err != nil {
 		return err
 	}
 

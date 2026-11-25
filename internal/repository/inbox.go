@@ -85,6 +85,23 @@ func (q *Queries) GetPendingTerminalEvent(
 	return &event, nil
 }
 
+func (q *Queries) MarkInboxProcessed(
+	ctx context.Context,
+	eventID string,
+) error {
+
+	query := `
+		UPDATE inbox_events
+		SET processed_at = NOW()
+		WHERE id = $1
+		  AND processed_at IS NULL
+	`
+
+	_, err := q.db.Exec(ctx, query, eventID)
+
+	return err
+}
+
 func (q *Queries) MarkPendingInboxProcessed(
 	ctx context.Context,
 	taskID string,

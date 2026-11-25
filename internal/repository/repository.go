@@ -32,10 +32,6 @@ type Queries struct {
 	db DBTX
 }
 
-func (q *Queries) MarkInboxProcessed(ctx context.Context, d string) any {
-	panic("unimplemented")
-}
-
 type Repository struct {
 	*Queries
 	pool *pgxpool.Pool
