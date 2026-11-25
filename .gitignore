@@ -6,3 +6,11 @@
 *.exe
 *.test
 *.out
+
+coverage.out
+coverage.html
+
+.idea/
+.vscode/
+
+.DS_Store

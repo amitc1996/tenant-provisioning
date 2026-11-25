@@ -24,4 +24,10 @@ var (
 	ErrInvalidTaskTransition = errors.New("invalid_task_transition")
 
 	ErrTaskProgressOutOfOrder = errors.New("task_progress_out_of_order")
+
+	ErrEmptyTenantUpdate = errors.New("empty_tenant_update")
+
+	ErrInvalidVersion = errors.New("invalid_version")
+
+	ErrInvalidPagination = errors.New("invalid_pagination")
 )
