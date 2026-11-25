@@ -8,6 +8,7 @@ import (
 
 	"github.com/amitc1996/tenant-provisioning/internal/application"
 	"github.com/amitc1996/tenant-provisioning/internal/config"
+	"github.com/amitc1996/tenant-provisioning/internal/consumer"
 	"github.com/amitc1996/tenant-provisioning/internal/database"
 	"github.com/amitc1996/tenant-provisioning/internal/handler"
 	"github.com/amitc1996/tenant-provisioning/internal/messaging"
@@ -56,6 +57,22 @@ func main() {
 	go dispatcher.Run(ctx)
 
 	service := application.New(repo)
+
+	progressConsumer := consumer.NewProgressConsumer(
+		cfg.RabbitMQURL,
+		service,
+	)
+
+	ctx, cancel = context.WithCancel(
+		context.Background(),
+	)
+
+	defer cancel()
+
+	go dispatcher.Run(ctx)
+
+	go progressConsumer.Run(ctx)
+
 	apiHandler := handler.New(service)
 
 	router := gin.New()
