@@ -10,6 +10,7 @@ import (
 	"github.com/amitc1996/tenant-provisioning/internal/config"
 	"github.com/amitc1996/tenant-provisioning/internal/database"
 	"github.com/amitc1996/tenant-provisioning/internal/handler"
+	"github.com/amitc1996/tenant-provisioning/internal/messaging"
 	"github.com/amitc1996/tenant-provisioning/internal/repository"
 	"github.com/gin-gonic/gin"
 )
@@ -83,6 +84,22 @@ func main() {
 			},
 		})
 	})
+
+	// Initialize RabbitMQ connection.
+	rabbitConn, err := messaging.Connect(cfg.RabbitMQURL)
+
+	if err != nil {
+		log.Fatal("Failed to connect to RabbitMQ")
+	}
+
+	defer rabbitConn.Close()
+
+	// Initialize message queues.
+	if err := messaging.SetupQueues(rabbitConn); err != nil {
+		log.Fatal("Failed to initialize RabbitMQ queues")
+	}
+
+	log.Println("RabbitMQ connected successfully")
 
 	// Register tenant and task APIs.
 	apiHandler.RegisterRoutes(router)
