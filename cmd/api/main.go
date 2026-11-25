@@ -1,7 +1,23 @@
 package main
 
-import "fmt"
+import (
+	"log"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
 
 func main() {
-	fmt.Println("Golang tenant app")
+	router := gin.Default()
+
+	router.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"service": "trading-provisioning",
+		})
+	})
+
+	if err := router.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }
